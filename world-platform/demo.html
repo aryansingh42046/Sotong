@@ -1,0 +1,955 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>🌍 World Platform — Live Demo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0f;--surface:#13131a;--elevated:#1a1a24;--border:#2a2a3a;--accent:#6366f1;--text:#f0f0ff;--muted:#6b6b8a}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:system-ui,sans-serif}
+#app{width:100vw;height:100vh;display:flex;flex-direction:column}
+.page{display:none;width:100%;height:100%;flex-direction:column}
+.page.active{display:flex}
+/* Glass */
+.glass{background:rgba(26,26,36,.75);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.07)}
+/* Buttons */
+.btn{padding:.5rem 1.2rem;border-radius:.75rem;font-size:.8rem;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#4f52d4}
+.btn-ghost{background:rgba(255,255,255,.05);color:#ccc;border:1px solid rgba(255,255,255,.1)}
+.btn-ghost:hover{background:rgba(255,255,255,.1)}
+/* Nav */
+#nav{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.5rem;z-index:20;position:relative}
+#nav .logo{font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:.5rem;cursor:pointer}
+#nav .nav-actions{display:flex;align-items:center;gap:.75rem}
+
+/* ===== GLOBE PAGE ===== */
+#globe-page{background:radial-gradient(ellipse at 50% 50%,#0d0d1a,#020208)}
+#globe-canvas-wrap{flex:1;position:relative}
+#globe-canvas-wrap canvas{position:absolute;inset:0;width:100%!important;height:100%!important}
+#globe-search{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:2rem;padding:.4rem 1rem;color:#fff;font-size:.8rem;outline:none;width:180px}
+#globe-search:focus{border-color:var(--accent)}
+.globe-color-btn{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s}
+.globe-color-btn:hover,.globe-color-btn.active{transform:scale(1.2);border-color:var(--accent)}
+#world-card{position:absolute;right:1.5rem;top:1.5rem;width:260px;padding:1.25rem;border-radius:1.25rem;z-index:10;display:none}
+#world-card.open{display:block}
+#world-card-close{position:absolute;top:.75rem;right:.75rem;background:none;border:none;color:#888;cursor:pointer;font-size:1.1rem}
+.world-dot{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.badge{font-size:.65rem;padding:.15rem .5rem;border-radius:2rem}
+.badge-green{background:#14532d;color:#4ade80}
+.badge-yellow{background:#422006;color:#fbbf24}
+#globe-hint{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);color:var(--muted);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;pointer-events:none}
+
+/* ===== AVATAR PAGE ===== */
+#avatar-page{background:radial-gradient(ellipse at 50% 50%,#0d0d1a,#020208);overflow-y:auto;align-items:center;justify-content:center}
+#avatar-wrap{display:flex;gap:1.5rem;padding:2rem;max-width:780px;width:100%}
+#av-preview{display:flex;flex-direction:column;align-items:center;gap:1rem;min-width:150px}
+#av-canvas{image-rendering:pixelated;border-radius:.75rem;background:var(--surface)}
+#av-name{background:none;border:none;border-bottom:1px solid var(--border);color:#fff;font-size:.9rem;text-align:center;outline:none;width:100%}
+#av-options{flex:1;overflow-y:auto;max-height:70vh}
+.av-section{margin-bottom:1rem}
+.av-section-title{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin-bottom:.4rem}
+.av-swatches{display:flex;flex-wrap:wrap;gap:.4rem}
+.av-swatch{padding:.25rem .6rem;border-radius:.4rem;font-size:.7rem;cursor:pointer;border:1px solid var(--border);color:var(--muted);transition:all .1s;text-transform:capitalize}
+.av-swatch:hover{border-color:#888;color:#fff}
+.av-swatch.active{border-color:var(--accent);background:rgba(99,102,241,.2);color:#fff}
+.color-swatch{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s}
+.color-swatch:hover,.color-swatch.selected{transform:scale(1.2);border-color:#fff}
+
+/* ===== DASHBOARD ===== */
+#dash-page{background:var(--bg);overflow-y:auto}
+#dash-content{max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+.world-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;margin-top:1rem}
+.world-card-dash{border-radius:1.25rem;padding:1.25rem;border:1px solid transparent;transition:border-color .15s;cursor:pointer}
+.world-card-dash:hover{border-color:rgba(99,102,241,.4)}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.section-title{font-size:1rem;font-weight:600;color:#fff}
+.avatar-row{display:flex;gap:.75rem;flex-wrap:wrap}
+.av-card{border-radius:1rem;padding:.75rem;display:flex;flex-direction:column;align-items:center;gap:.5rem;cursor:pointer;border:1px solid transparent;transition:border-color .15s}
+.av-card.selected{border-color:var(--accent)}
+
+/* ===== GAME PAGE ===== */
+#game-page{background:#0a0a0f;position:relative}
+#phaser-wrap{flex:1;position:relative;overflow:hidden}
+#game-canvas{position:absolute;inset:0}
+#game-hud{position:absolute;top:1rem;left:1rem;display:flex;align-items:center;gap:.5rem;z-index:10}
+#game-chat{position:absolute;right:0;top:0;bottom:0;width:260px;border-left:1px solid rgba(255,255,255,.05);display:flex;flex-direction:column}
+#chat-messages{flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;gap:.4rem}
+.chat-msg{font-size:.72rem;line-height:1.4}
+.chat-msg .username{color:var(--accent);font-weight:600}
+#chat-form{padding:.5rem;border-top:1px solid rgba(255,255,255,.05);display:flex;gap:.4rem}
+#chat-input{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:.5rem;padding:.4rem .75rem;color:#fff;font-size:.72rem;outline:none}
+#chat-input:focus{border-color:var(--accent)}
+#chat-send{background:var(--accent);border:none;color:#fff;border-radius:.5rem;padding:.4rem .75rem;cursor:pointer;font-size:.72rem}
+#controls-hint{position:absolute;bottom:1rem;left:1rem;font-size:.65rem;color:var(--muted)}
+#interact-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-80px);background:#0008;border:1px solid #ffd700;color:#ffd700;font-size:.7rem;padding:.25rem .75rem;border-radius:2rem;pointer-events:none;display:none}
+#room-badge{background:rgba(99,102,241,.2);border:1px solid var(--accent);color:#a5b4fc;font-size:.72rem;padding:.25rem .75rem;border-radius:2rem}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:100;display:none}
+.modal-bg.open{display:flex}
+.modal{border-radius:1.25rem;padding:1.75rem;width:100%;max-width:420px}
+.modal h2{font-size:1.1rem;font-weight:700;margin-bottom:1.25rem;color:#fff}
+.form-group{margin-bottom:1rem}
+.form-group label{display:block;font-size:.7rem;color:var(--muted);margin-bottom:.3rem}
+.form-group input,.form-group textarea{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:.75rem;padding:.6rem 1rem;color:#fff;font-size:.8rem;outline:none}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--accent)}
+.modal-actions{display:flex;gap:.75rem;margin-top:1.25rem}
+
+/* World editor */
+#editor-page{background:var(--bg);overflow:hidden}
+#editor-split{display:flex;height:100%;overflow:hidden}
+#editor-sidebar{width:200px;border-right:1px solid var(--border);padding:1rem;overflow-y:auto;display:flex;flex-direction:column;gap:.75rem;flex-shrink:0}
+#editor-main{flex:1;overflow:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem}
+.editor-tool-btn{width:100%;text-align:left;padding:.4rem .75rem;border-radius:.4rem;font-size:.75rem;cursor:pointer;border:none;transition:all .1s;color:var(--muted);background:none}
+.editor-tool-btn:hover{background:rgba(255,255,255,.05);color:#fff}
+.editor-tool-btn.active{background:rgba(99,102,241,.2);color:#a5b4fc}
+.floor-btn{width:100%;text-align:left;padding:.35rem .6rem;border-radius:.4rem;font-size:.72rem;cursor:pointer;border:none;transition:all .1s;color:var(--muted);background:none}
+.floor-btn.active{background:var(--accent);color:#fff}
+#editor-grid-wrap{position:relative;flex:1;min-height:300px}
+#editor-grid{position:relative;background:#111118;border:1px solid var(--border);border-radius:.5rem;cursor:crosshair;overflow:hidden}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ========== GLOBE PAGE ========== -->
+<div class="page active" id="globe-page">
+  <div id="nav" class="glass">
+    <div class="logo" onclick="showPage('globe-page')"><span>🌍</span> WorldPlatform</div>
+    <div class="nav-actions">
+      <div style="display:flex;align-items:center;gap:.4rem">
+        <span style="font-size:.7rem;color:var(--muted)">Globe:</span>
+        <div class="globe-color-btn active" style="background:#1a237e" data-color="#1a237e" onclick="setGlobeColor(this)"></div>
+        <div class="globe-color-btn" style="background:#0d3b6e" data-color="#0d3b6e" onclick="setGlobeColor(this)"></div>
+        <div class="globe-color-btn" style="background:#1b5e20" data-color="#1b5e20" onclick="setGlobeColor(this)"></div>
+        <div class="globe-color-btn" style="background:#7f1d1d" data-color="#7f1d1d" onclick="setGlobeColor(this)"></div>
+        <div class="globe-color-btn" style="background:#4a1d96" data-color="#4a1d96" onclick="setGlobeColor(this)"></div>
+        <input type="color" value="#1a237e" oninput="setGlobeColor(null,this.value)" style="width:22px;height:22px;border:none;background:none;cursor:pointer;border-radius:4px" title="Custom">
+      </div>
+      <input id="globe-search" placeholder="Search worlds…" oninput="filterGlobeWorlds(this.value)"/>
+      <button class="btn btn-ghost" onclick="showPage('dash-page')">Dashboard</button>
+      <button class="btn btn-primary" onclick="showPage('dash-page')">Enter</button>
+    </div>
+  </div>
+  <div id="globe-canvas-wrap"></div>
+  <div id="globe-hint">6 worlds · drag to rotate · scroll to zoom · click to select</div>
+  <!-- World card -->
+  <div id="world-card" class="glass">
+    <button id="world-card-close" onclick="closeWorldCard()">✕</button>
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
+      <div class="world-dot" id="wc-dot">🌐</div>
+      <div>
+        <div style="font-weight:700;color:#fff" id="wc-name">World Name</div>
+        <div style="font-size:.72rem;color:var(--muted)" id="wc-members">0 members</div>
+      </div>
+    </div>
+    <p style="font-size:.75rem;color:#9ca3af;margin-bottom:1rem;line-height:1.5" id="wc-desc"></p>
+    <div style="display:flex;gap:.5rem;margin-bottom:.75rem">
+      <span class="badge badge-green" id="wc-vis">🌍 Public</span>
+    </div>
+    <div style="display:flex;gap:.5rem">
+      <button class="btn btn-primary" style="flex:1" onclick="showPage('avatar-page')">Enter World</button>
+      <button class="btn btn-ghost" onclick="showPage('dash-page')">Details</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== AVATAR CREATOR PAGE ========== -->
+<div class="page" id="avatar-page">
+  <div id="nav" class="glass" style="position:sticky;top:0;z-index:10">
+    <div class="logo" onclick="showPage('globe-page')"><span>🌍</span> WorldPlatform</div>
+    <div class="nav-actions">
+      <span style="font-size:.8rem;color:var(--muted)">Choose your avatar</span>
+      <button class="btn btn-ghost" onclick="showPage('globe-page')">← Back</button>
+    </div>
+  </div>
+  <div id="avatar-wrap">
+    <div id="av-preview">
+      <canvas id="av-canvas" width="128" height="128"></canvas>
+      <input id="av-name" value="My Avatar" placeholder="Avatar name"/>
+      <div style="display:flex;gap:.5rem;width:100%">
+        <button class="btn btn-ghost" style="flex:1" onclick="showPage('globe-page')">Cancel</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveAvatarAndEnter()">Save & Enter →</button>
+      </div>
+    </div>
+    <div id="av-options" class="glass" style="border-radius:1rem;padding:1rem">
+      <div class="av-section">
+        <div class="av-section-title">Skin Tone</div>
+        <div class="av-swatches" id="sw-skin">
+          <span class="av-swatch active" data-field="skinTone" data-val="light" onclick="setAv(this)">Light</span>
+          <span class="av-swatch" data-field="skinTone" data-val="medium" onclick="setAv(this)">Medium</span>
+          <span class="av-swatch" data-field="skinTone" data-val="tan" onclick="setAv(this)">Tan</span>
+          <span class="av-swatch" data-field="skinTone" data-val="dark" onclick="setAv(this)">Dark</span>
+        </div>
+      </div>
+      <div class="av-section">
+        <div class="av-section-title">Hair Style</div>
+        <div class="av-swatches">
+          <span class="av-swatch active" data-field="hairStyle" data-val="short" onclick="setAv(this)">Short</span>
+          <span class="av-swatch" data-field="hairStyle" data-val="long" onclick="setAv(this)">Long</span>
+          <span class="av-swatch" data-field="hairStyle" data-val="curly" onclick="setAv(this)">Curly</span>
+          <span class="av-swatch" data-field="hairStyle" data-val="spiky" onclick="setAv(this)">Spiky</span>
+        </div>
+      </div>
+      <div class="av-section">
+        <div class="av-section-title">Hair Color</div>
+        <div class="av-swatches">
+          <span class="av-swatch active" data-field="hairColor" data-val="black" onclick="setAv(this)">Black</span>
+          <span class="av-swatch" data-field="hairColor" data-val="brown" onclick="setAv(this)">Brown</span>
+          <span class="av-swatch" data-field="hairColor" data-val="blonde" onclick="setAv(this)">Blonde</span>
+          <span class="av-swatch" data-field="hairColor" data-val="red" onclick="setAv(this)">Red</span>
+          <span class="av-swatch" data-field="hairColor" data-val="pink" onclick="setAv(this)">Pink</span>
+          <span class="av-swatch" data-field="hairColor" data-val="blue" onclick="setAv(this)">Blue</span>
+        </div>
+      </div>
+      <div class="av-section">
+        <div class="av-section-title">Eye Color</div>
+        <div class="av-swatches">
+          <span class="av-swatch active" data-field="eyeColor" data-val="brown" onclick="setAv(this)">Brown</span>
+          <span class="av-swatch" data-field="eyeColor" data-val="blue" onclick="setAv(this)">Blue</span>
+          <span class="av-swatch" data-field="eyeColor" data-val="green" onclick="setAv(this)">Green</span>
+          <span class="av-swatch" data-field="eyeColor" data-val="purple" onclick="setAv(this)">Purple</span>
+        </div>
+      </div>
+      <div class="av-section">
+        <div class="av-section-title">Mouth</div>
+        <div class="av-swatches">
+          <span class="av-swatch active" data-field="mouth" data-val="smile" onclick="setAv(this)">😊 Smile</span>
+          <span class="av-swatch" data-field="mouth" data-val="neutral" onclick="setAv(this)">😐 Neutral</span>
+          <span class="av-swatch" data-field="mouth" data-val="surprised" onclick="setAv(this)">😮 Surprised</span>
+        </div>
+      </div>
+      <div class="av-section">
+        <div class="av-section-title">Top Color</div>
+        <div class="av-swatches">
+          <input type="color" value="#6366f1" oninput="setAvColor('topColor',this.value)" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px">
+          <span class="av-swatch" data-field="topStyle" data-val="tshirt" onclick="setAv(this)" style="border-color:var(--accent);background:rgba(99,102,241,.2)">T-Shirt</span>
+          <span class="av-swatch" data-field="topStyle" data-val="hoodie" onclick="setAv(this)">Hoodie</span>
+          <span class="av-swatch" data-field="topStyle" data-val="jacket" onclick="setAv(this)">Jacket</span>
+        </div>
+      </div>
+      <div class="av-section">
+        <div class="av-section-title">Bottom Color</div>
+        <div class="av-swatches">
+          <input type="color" value="#1e3a5f" oninput="setAvColor('bottomColor',this.value)" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px">
+          <span class="av-swatch active" data-field="bottomStyle" data-val="jeans" onclick="setAv(this)">Jeans</span>
+          <span class="av-swatch" data-field="bottomStyle" data-val="shorts" onclick="setAv(this)">Shorts</span>
+          <span class="av-swatch" data-field="bottomStyle" data-val="skirt" onclick="setAv(this)">Skirt</span>
+        </div>
+      </div>
+      <div class="av-section">
+        <div class="av-section-title">Hat</div>
+        <div class="av-swatches">
+          <span class="av-swatch active" data-field="hat" data-val="none" onclick="setAv(this)">None</span>
+          <span class="av-swatch" data-field="hat" data-val="cap" onclick="setAv(this)">🧢 Cap</span>
+          <span class="av-swatch" data-field="hat" data-val="beanie" onclick="setAv(this)">🎿 Beanie</span>
+          <span class="av-swatch" data-field="hat" data-val="crown" onclick="setAv(this)">👑 Crown</span>
+        </div>
+      </div>
+      <div class="av-section">
+        <div class="av-section-title">Glasses</div>
+        <div class="av-swatches">
+          <span class="av-swatch active" data-field="glasses" data-val="none" onclick="setAv(this)">None</span>
+          <span class="av-swatch" data-field="glasses" data-val="sunglasses" onclick="setAv(this)">🕶 Shades</span>
+          <span class="av-swatch" data-field="glasses" data-val="frames" onclick="setAv(this)">👓 Frames</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== DASHBOARD PAGE ========== -->
+<div class="page" id="dash-page">
+  <div id="nav" class="glass" style="position:sticky;top:0;z-index:10;border-bottom:1px solid rgba(255,255,255,.05)">
+    <div class="logo" onclick="showPage('globe-page')"><span>🌍</span> WorldPlatform</div>
+    <div class="nav-actions">
+      <span style="font-size:.8rem;color:var(--muted)">@explorer</span>
+      <button class="btn btn-primary" onclick="document.getElementById('create-modal').classList.add('open')">+ New World</button>
+    </div>
+  </div>
+  <div id="dash-content">
+    <div class="section-header" style="margin-bottom:1.25rem">
+      <div>
+        <h1 style="font-size:1.4rem;font-weight:700">Dashboard</h1>
+        <p style="font-size:.8rem;color:var(--muted);margin-top:.25rem">Manage your worlds & avatars</p>
+      </div>
+    </div>
+
+    <!-- Avatars -->
+    <div class="section-header">
+      <div class="section-title">Your Avatars</div>
+      <button onclick="showPage('avatar-page')" style="font-size:.75rem;color:var(--accent);background:none;border:none;cursor:pointer">+ New →</button>
+    </div>
+    <div class="avatar-row" id="avatar-row">
+      <!-- filled by JS -->
+    </div>
+
+    <!-- Worlds -->
+    <div class="section-header" style="margin-top:2rem">
+      <div class="section-title">Explore Worlds</div>
+    </div>
+    <div class="world-grid" id="world-grid"></div>
+  </div>
+</div>
+
+<!-- ========== WORLD EDITOR PAGE ========== -->
+<div class="page" id="editor-page">
+  <div id="nav" class="glass" style="border-bottom:1px solid var(--border)">
+    <div class="logo" onclick="showPage('dash-page')"><span>🌍</span> World Editor</div>
+    <div class="nav-actions">
+      <span style="font-size:.8rem;color:var(--muted)" id="editor-world-name">My World</span>
+      <button class="btn btn-ghost" onclick="showPage('dash-page')">← Dashboard</button>
+      <button class="btn btn-primary" onclick="saveEditor()">Save Design</button>
+    </div>
+  </div>
+  <div id="editor-split">
+    <div id="editor-sidebar" class="glass" style="border-radius:0">
+      <div style="font-size:.75rem;font-weight:600;color:#fff;margin-bottom:.25rem">Floors</div>
+      <div id="floor-list"></div>
+      <hr style="border-color:var(--border);margin:.25rem 0">
+      <div style="font-size:.75rem;font-weight:600;color:#fff;margin-bottom:.25rem">Tools</div>
+      <button class="editor-tool-btn active" id="tool-room" onclick="setEditorTool('room',this)">🏠 Room</button>
+      <button class="editor-tool-btn" id="tool-furniture" onclick="setEditorTool('furniture',this)">🪑 Furniture</button>
+      <button class="editor-tool-btn" id="tool-portal" onclick="setEditorTool('portal',this)">🌀 Portal</button>
+      <div id="tool-options" style="margin-top:.5rem"></div>
+    </div>
+    <div id="editor-main">
+      <div style="font-size:.72rem;color:var(--muted)" id="editor-status">Click on the grid to place items</div>
+      <div id="editor-grid-wrap">
+        <div id="editor-grid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== GAME PAGE ========== -->
+<div class="page" id="game-page">
+  <div id="phaser-wrap">
+    <canvas id="game-canvas"></canvas>
+    <!-- HUD -->
+    <div id="game-hud">
+      <button class="btn btn-ghost" style="font-size:.7rem;padding:.3rem .75rem" onclick="showPage('dash-page')">← Exit</button>
+      <div class="glass" style="padding:.3rem .75rem;border-radius:.5rem;font-size:.75rem;font-weight:600" id="hud-world-name">My World</div>
+      <div id="room-badge" style="display:none"></div>
+    </div>
+    <div id="interact-hint">[E] Interact</div>
+    <div id="controls-hint" class="glass" style="padding:.4rem .75rem;border-radius:.5rem">WASD / Arrow keys to move · E to interact</div>
+    <!-- Chat -->
+    <div id="game-chat" class="glass">
+      <div style="padding:.6rem .75rem;border-bottom:1px solid rgba(255,255,255,.05);font-size:.75rem;font-weight:600;color:#fff">World Chat</div>
+      <div id="chat-messages"></div>
+      <form id="chat-form" onsubmit="sendChat(event)">
+        <input id="chat-input" placeholder="Message…" autocomplete="off"/>
+        <button type="submit" id="chat-send">→</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ========== CREATE WORLD MODAL ========== -->
+<div class="modal-bg" id="create-modal">
+  <div class="modal glass">
+    <h2>Create New World</h2>
+    <div class="form-group">
+      <label>World Name</label>
+      <input id="new-world-name" placeholder="My Awesome World"/>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="new-world-desc" rows="3" placeholder="What's this world about?" style="resize:none"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Globe Marker Color</label>
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <input type="color" id="new-world-color" value="#6366f1" style="width:36px;height:36px;cursor:pointer;border:none;border-radius:6px">
+        <span style="font-size:.72rem;color:var(--muted)">Appears as a pin on the globe</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" style="flex:1" onclick="document.getElementById('create-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="createWorld()">Create World →</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- #app -->
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const WORLDS = [
+  {id:'w1',name:'The Neon Hub',desc:'A cyberpunk workspace with glowing neon corridors.',color:'#6366f1',lat:40,lon:-74,members:142,vis:'public'},
+  {id:'w2',name:'Pixel Forest',desc:'An enchanted forest full of pixel art creatures.',color:'#22c55e',lat:-10,lon:50,members:89,vis:'public'},
+  {id:'w3',name:'Oceanbase',desc:'Deep underwater research station.',color:'#06b6d4',lat:20,lon:120,members:231,vis:'public'},
+  {id:'w4',name:'Crimson Labs',desc:'Private research compound. Invite only.',color:'#ef4444',lat:55,lon:25,members:17,vis:'private'},
+  {id:'w5',name:'Sky Citadel',desc:'Floating city in the clouds.',color:'#f59e0b',lat:-35,lon:-60,members:58,vis:'public'},
+  {id:'w6',name:'Void Station',desc:'Dark ambient space for focused deep work.',color:'#a855f7',lat:65,lon:170,members:33,vis:'public'},
+];
+
+let globeColor = '#1a237e';
+let avatarConfig = {skinTone:'light',hairStyle:'short',hairColor:'black',eyeColor:'brown',mouth:'smile',topColor:'#6366f1',bottomColor:'1e3a5f',hat:'none',glasses:'none'};
+let savedAvatars = [];
+let currentEditorFloor = 0;
+let editorTool = 'room';
+let editorDesign = { floors: ['Fire','Water','Earth','Air','Sky'].map((n,i)=>({floorNumber:i+1,floorName:n,rooms:[],furniture:[],portals:[]})) };
+
+// ============================================================
+// PAGE ROUTING
+// ============================================================
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='game-page') initGame();
+  if(id==='editor-page') initEditor();
+  if(id==='dash-page') renderDash();
+}
+
+// ============================================================
+// THREE.JS GLOBE
+// ============================================================
+(function initGlobe(){
+  const wrap = document.getElementById('globe-canvas-wrap');
+  const w=wrap.clientWidth, h=wrap.clientHeight;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, w/h, 0.1, 100);
+  camera.position.z = 6;
+
+  const renderer = new THREE.WebGLRenderer({antialias:true,alpha:true});
+  renderer.setSize(w,h);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setClearColor(0,0);
+  wrap.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff,.45));
+  const dl=new THREE.DirectionalLight(0xffffff,1.3); dl.position.set(5,3,5); scene.add(dl);
+  const bl=new THREE.DirectionalLight(0x6366f1,.35); bl.position.set(-5,-3,-5); scene.add(bl);
+
+  const globeMat = new THREE.MeshPhongMaterial({color:new THREE.Color(globeColor),emissive:new THREE.Color(globeColor).multiplyScalar(.15),shininess:55,transparent:true,opacity:.93});
+  const globe = new THREE.Mesh(new THREE.SphereGeometry(2,64,64),globeMat);
+  scene.add(globe);
+  window._globe = globe;
+  window._globeMat = globeMat;
+
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(2.01,32,32),new THREE.MeshBasicMaterial({color:0x6366f1,wireframe:true,transparent:true,opacity:.07})));
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(2.18,64,64),new THREE.MeshBasicMaterial({color:0x6366f1,transparent:true,opacity:.055,side:THREE.BackSide})));
+
+  // Stars
+  const sv=[]; for(let i=0;i<2000;i++){sv.push((Math.random()-.5)*100,(Math.random()-.5)*100,(Math.random()-.5)*100);}
+  const sg=new THREE.BufferGeometry(); sg.setAttribute('position',new THREE.Float32BufferAttribute(sv,3));
+  scene.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:.07})));
+
+  // Markers
+  const markers = [];
+  const llToV3=(lat,lon,r)=>{
+    const phi=(90-lat)*Math.PI/180, theta=(lon+180)*Math.PI/180;
+    return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta), r*Math.cos(phi), r*Math.sin(phi)*Math.sin(theta));
+  };
+  WORLDS.forEach(w=>{
+    const v=llToV3(w.lat,w.lon,2.08);
+    const m=new THREE.Mesh(new THREE.SphereGeometry(.065,16,16),new THREE.MeshPhongMaterial({color:w.color,emissive:w.color,emissiveIntensity:.6}));
+    m.position.copy(v); m.userData={world:w};
+    scene.add(m); markers.push(m);
+  });
+  window._markers = markers;
+
+  // Drag
+  let drag=false, prev={x:0,y:0};
+  const el=renderer.domElement;
+  el.addEventListener('mousedown',e=>{drag=true;prev={x:e.clientX,y:e.clientY};el.style.cursor='grabbing'});
+  window.addEventListener('mouseup',()=>{drag=false;el.style.cursor='grab'});
+  el.style.cursor='grab';
+
+  el.addEventListener('mousemove',e=>{
+    if(drag){
+      globe.rotation.y+=(e.clientX-prev.x)*.005;
+      globe.rotation.x+=(e.clientY-prev.y)*.005;
+      prev={x:e.clientX,y:e.clientY};
+      return;
+    }
+    const rect=el.getBoundingClientRect();
+    const mouse=new THREE.Vector2(((e.clientX-rect.left)/rect.width)*2-1,-((e.clientY-rect.top)/rect.height)*2+1);
+    const rc=new THREE.Raycaster(); rc.setFromCamera(mouse,camera);
+    markers.forEach(m=>{m.material.emissiveIntensity=.6;m.scale.setScalar(1);});
+    const hits=rc.intersectObjects(markers);
+    if(hits.length){const h=hits[0].object;h.material.emissiveIntensity=1.8;h.scale.setScalar(1.5);el.style.cursor='pointer';}
+    else{el.style.cursor=drag?'grabbing':'grab';}
+  });
+
+  el.addEventListener('click',e=>{
+    const rect=el.getBoundingClientRect();
+    const mouse=new THREE.Vector2(((e.clientX-rect.left)/rect.width)*2-1,-((e.clientY-rect.top)/rect.height)*2+1);
+    const rc=new THREE.Raycaster(); rc.setFromCamera(mouse,camera);
+    const hits=rc.intersectObjects(markers);
+    if(hits.length) openWorldCard(hits[0].object.userData.world);
+  });
+
+  el.addEventListener('wheel',e=>{camera.position.z=Math.max(3.5,Math.min(10,camera.position.z+e.deltaY*.005));});
+
+  (function animate(){requestAnimationFrame(animate);if(!drag)globe.rotation.y+=.002;renderer.render(scene,camera);})();
+  window.addEventListener('resize',()=>{renderer.setSize(wrap.clientWidth,wrap.clientHeight);camera.aspect=wrap.clientWidth/wrap.clientHeight;camera.updateProjectionMatrix();});
+})();
+
+function setGlobeColor(btn,hex){
+  document.querySelectorAll('.globe-color-btn').forEach(b=>b.classList.remove('active'));
+  if(btn){btn.classList.add('active');hex=btn.dataset.color;}
+  globeColor=hex;
+  if(window._globeMat){
+    window._globeMat.color.set(hex);
+    window._globeMat.emissive.set(new THREE.Color(hex).multiplyScalar(.15));
+  }
+}
+
+function filterGlobeWorlds(q){
+  if(!window._markers) return;
+  window._markers.forEach(m=>{
+    const match=!q||m.userData.world.name.toLowerCase().includes(q.toLowerCase());
+    m.visible=match;
+  });
+}
+
+function openWorldCard(w){
+  document.getElementById('wc-dot').style.background=w.color;
+  document.getElementById('wc-name').textContent=w.name;
+  document.getElementById('wc-members').textContent=w.members+' members';
+  document.getElementById('wc-desc').textContent=w.desc;
+  document.getElementById('wc-vis').textContent=w.vis==='public'?'🌍 Public':'🔒 Private';
+  document.getElementById('wc-vis').className='badge '+(w.vis==='public'?'badge-green':'badge-yellow');
+  document.getElementById('world-card').classList.add('open');
+}
+function closeWorldCard(){document.getElementById('world-card').classList.remove('open');}
+
+// ============================================================
+// AVATAR CREATOR
+// ============================================================
+const SKIN={light:'#fde8d0',medium:'#d4a574',tan:'#c68642',dark:'#6b3f1e'};
+const HAIR={black:'#1a1a1a',brown:'#6b3f1e',blonde:'#f5d35e',red:'#c0392b',white:'#f0f0f0',pink:'#f06292',blue:'#1976d2'};
+const EYE={brown:'#6b3f1e',blue:'#1976d2',green:'#2e7d32',black:'#111',purple:'#7b1fa2'};
+
+function setAv(el){
+  const field=el.dataset.field, val=el.dataset.val;
+  document.querySelectorAll(`[data-field="${field}"]`).forEach(e=>e.classList.remove('active'));
+  el.classList.add('active');
+  avatarConfig[field]=val;
+  drawAvatar();
+}
+function setAvColor(field,val){avatarConfig[field]=val;drawAvatar();}
+
+function drawAvatar(){
+  const c=document.getElementById('av-canvas');
+  const ctx=c.getContext('2d');
+  ctx.imageSmoothingEnabled=false;
+  const S=4; // 128/32
+  ctx.clearRect(0,0,128,128);
+  const px=(x,y,w,h,col)=>{ctx.fillStyle=col;ctx.fillRect(x*S,y*S,w*S,h*S);};
+  const cfg=avatarConfig;
+  const skin=SKIN[cfg.skinTone]||SKIN.medium;
+  const hair=HAIR[cfg.hairColor]||HAIR.black;
+  const eye=EYE[cfg.eyeColor]||EYE.brown;
+  const top=cfg.topColor||'#6366f1';
+  const bot=cfg.bottomColor||'#1e3a5f';
+
+  px(5,28,4,3,'#888'); px(11,28,4,3,'#888');
+  px(5,22,4,6,bot); px(11,22,4,6,bot);
+  px(3,14,14,8,top); px(0,14,3,7,top); px(17,14,3,7,top);
+  px(0,20,3,2,skin); px(17,20,3,2,skin);
+  px(6,12,4,2,skin);
+  px(5,4,12,10,skin);
+  px(6,8,2,2,eye); px(12,8,2,2,eye);
+  px(5,8,1,2,'#fff'); px(11,8,1,2,'#fff');
+  if(cfg.mouth==='smile'){px(7,12,6,1,'#c0392b');px(6,11,1,1,'#c0392b');px(13,11,1,1,'#c0392b');}
+  else if(cfg.mouth==='neutral'){px(7,12,6,1,'#999');}
+  else{px(7,10,6,2,'#c0392b');}
+
+  const hs=cfg.hairStyle||'short';
+  if(hs==='short'){px(5,2,12,4,hair);px(3,4,2,3,hair);px(15,4,2,3,hair);}
+  else if(hs==='long'){px(5,2,12,4,hair);px(3,4,2,3,hair);px(15,4,2,3,hair);px(3,7,2,8,hair);px(15,7,2,8,hair);}
+  else if(hs==='curly'){px(4,2,14,5,hair);px(2,4,2,4,hair);px(16,4,2,4,hair);px(3,8,2,2,hair);px(15,8,2,2,hair);}
+  else if(hs==='spiky'){px(5,0,2,4,hair);px(8,0,2,4,hair);px(11,0,2,4,hair);px(14,0,2,4,hair);px(5,2,12,3,hair);px(3,3,2,3,hair);px(15,3,2,3,hair);}
+
+  const hat=cfg.hat;
+  if(hat==='cap'){px(3,1,16,3,'#e53e3e');px(1,4,3,1,'#e53e3e');}
+  else if(hat==='crown'){px(4,0,2,3,'#f5d35e');px(8,0,2,4,'#f5d35e');px(12,0,2,3,'#f5d35e');px(4,2,12,2,'#f5d35e');}
+  else if(hat==='beanie'){px(5,0,12,4,'#3949ab');px(3,3,2,3,'#3949ab');}
+
+  const gl=cfg.glasses;
+  if(gl==='sunglasses'){px(6,8,4,2,'#555');px(12,8,4,2,'#555');px(10,9,2,1,'#333');}
+  else if(gl==='frames'){
+    ctx.strokeStyle='#333';ctx.lineWidth=S*.5;
+    ctx.strokeRect(6*S,7*S,4*S,3*S);ctx.strokeRect(12*S,7*S,4*S,3*S);
+    px(10,9,2,1,'#333');
+  }
+}
+drawAvatar();
+
+function saveAvatarAndEnter(){
+  const name=document.getElementById('av-name').value||'Avatar';
+  savedAvatars.push({...avatarConfig,name,id:'av'+Date.now()});
+  showPage('game-page');
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDash(){
+  // Avatars
+  const row=document.getElementById('avatar-row');
+  row.innerHTML='';
+  savedAvatars.forEach((av,i)=>{
+    const div=document.createElement('div');
+    div.className='av-card glass'+(i===0?' selected':'');
+    const c=document.createElement('canvas');
+    c.width=64;c.height=64;c.style.imageRendering='pixelated';
+    drawAvatarToCanvas(c,av);
+    div.appendChild(c);
+    const n=document.createElement('span');
+    n.style.cssText='font-size:.7rem;color:var(--muted)';n.textContent=av.name;
+    div.appendChild(n);
+    row.appendChild(div);
+  });
+  if(savedAvatars.length===0){
+    row.innerHTML='<div class="glass" style="border-radius:1rem;padding:1.5rem;text-align:center;color:var(--muted);font-size:.8rem">No avatars yet · <button onclick="showPage(\'avatar-page\')" style="color:var(--accent);background:none;border:none;cursor:pointer">Create one</button></div>';
+  }
+
+  // Worlds
+  const grid=document.getElementById('world-grid');
+  grid.innerHTML='';
+  WORLDS.forEach(w=>{
+    grid.innerHTML+=`
+    <div class="world-card-dash glass" onclick="openWorldCard(${JSON.stringify(w).replace(/"/g,'&quot;')});showPage('globe-page')">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
+        <div style="width:38px;height:38px;border-radius:50%;background:${w.color};display:flex;align-items:center;justify-content:1.1rem;justify-content:center;font-size:1.1rem;flex-shrink:0">🌐</div>
+        <div>
+          <div style="font-weight:600;color:#fff;font-size:.9rem">${w.name}</div>
+          <div style="font-size:.7rem;color:var(--muted)">${w.members} members</div>
+        </div>
+      </div>
+      <p style="font-size:.75rem;color:#9ca3af;line-height:1.4;margin-bottom:.9rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${w.desc}</p>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-primary" style="flex:1;font-size:.72rem;padding:.4rem" onclick="event.stopPropagation();showPage('avatar-page')">Enter</button>
+        <button class="btn btn-ghost" style="font-size:.72rem;padding:.4rem .75rem" onclick="event.stopPropagation();showPage('editor-page')">Edit</button>
+      </div>
+    </div>`;
+  });
+}
+
+function createWorld(){
+  const name=document.getElementById('new-world-name').value||'New World';
+  const desc=document.getElementById('new-world-desc').value;
+  const color=document.getElementById('new-world-color').value;
+  WORLDS.push({id:'w'+Date.now(),name,desc,color,lat:Math.random()*120-60,lon:Math.random()*360-180,members:1,vis:'public'});
+  document.getElementById('create-modal').classList.remove('open');
+  renderDash();
+}
+
+// Draw avatar to a given canvas
+function drawAvatarToCanvas(c,cfg){
+  const ctx=c.getContext('2d');
+  ctx.imageSmoothingEnabled=false;
+  const S=c.width/32;
+  ctx.clearRect(0,0,c.width,c.height);
+  const px=(x,y,w,h,col)=>{ctx.fillStyle=col;ctx.fillRect(x*S,y*S,w*S,h*S);};
+  const skin=SKIN[cfg.skinTone]||SKIN.medium;
+  const hair=HAIR[cfg.hairColor]||HAIR.black;
+  const eye=EYE[cfg.eyeColor]||EYE.brown;
+  const top=cfg.topColor||'#6366f1'; const bot=cfg.bottomColor||'#1e3a5f';
+  px(5,28,4,3,'#888');px(11,28,4,3,'#888');
+  px(5,22,4,6,bot);px(11,22,4,6,bot);
+  px(3,14,14,8,top);px(0,14,3,7,top);px(17,14,3,7,top);
+  px(6,12,4,2,skin);px(5,4,12,10,skin);
+  px(6,8,2,2,eye);px(12,8,2,2,eye);
+  px(7,12,6,1,'#c0392b');
+  px(5,2,12,4,hair);px(3,4,2,3,hair);px(15,4,2,3,hair);
+  if(cfg.hat==='cap'){px(3,1,16,3,'#e53e3e');}
+  else if(cfg.hat==='crown'){px(4,0,2,3,'#f5d35e');px(8,0,2,4,'#f5d35e');px(12,0,2,3,'#f5d35e');px(4,2,12,2,'#f5d35e');}
+}
+
+// ============================================================
+// WORLD EDITOR
+// ============================================================
+function initEditor(){
+  document.getElementById('editor-world-name').textContent = WORLDS[0]?.name || 'My World';
+  renderFloorList();
+  renderEditorGrid();
+  setEditorToolOptions('room');
+}
+
+function renderFloorList(){
+  const el=document.getElementById('floor-list');
+  el.innerHTML='';
+  editorDesign.floors.forEach((f,i)=>{
+    const btn=document.createElement('button');
+    btn.className='floor-btn'+(i===currentEditorFloor?' active':'');
+    btn.textContent=`${i+1}. ${f.floorName}`;
+    btn.onclick=()=>{currentEditorFloor=i;renderFloorList();renderEditorGrid();};
+    el.appendChild(btn);
+  });
+}
+
+function setEditorTool(t,btn){
+  editorTool=t;
+  document.querySelectorAll('.editor-tool-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  setEditorToolOptions(t);
+}
+
+function setEditorToolOptions(t){
+  const el=document.getElementById('tool-options');
+  if(t==='room'){
+    el.innerHTML=`
+      <div style="font-size:.7rem;color:var(--muted);margin-bottom:.25rem">Room Name</div>
+      <input id="room-name-input" value="Meeting Room" style="width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:.4rem;padding:.3rem .5rem;color:#fff;font-size:.72rem;outline:none;margin-bottom:.4rem"/>
+      <div style="display:flex;gap:.4rem">
+        <input id="room-w" value="15" type="number" min="5" max="40" style="width:50%;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:.4rem;padding:.3rem .5rem;color:#fff;font-size:.72rem;outline:none"/>
+        <input id="room-h" value="10" type="number" min="5" max="40" style="width:50%;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:.4rem;padding:.3rem .5rem;color:#fff;font-size:.72rem;outline:none"/>
+      </div>`;
+  } else if(t==='furniture'){
+    const types=[['desk','🖥 Desk'],['whiteboard','📋 Whiteboard'],['meeting_room','🎙 Meeting'],['tv_screen','📺 TV'],['reception_desk','🛎 Reception']];
+    el.innerHTML=types.map(([v,l])=>`<button class="editor-tool-btn" data-ft="${v}" onclick="setFurnitureType('${v}',this)">${l}</button>`).join('');
+  } else {
+    el.innerHTML=`<div style="font-size:.72rem;color:var(--muted)">Click to place portal</div>`;
+  }
+}
+
+let selectedFurnitureType='desk';
+function setFurnitureType(t,btn){
+  selectedFurnitureType=t;
+  document.querySelectorAll('[data-ft]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function renderEditorGrid(){
+  const wrap=document.getElementById('editor-grid-wrap');
+  const GS=7; // px per cell
+  const COLS=80, ROWS=60;
+  const grid=document.getElementById('editor-grid');
+  grid.style.width=COLS*GS+'px';
+  grid.style.height=ROWS*GS+'px';
+  grid.innerHTML='';
+
+  // SVG grid lines
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none';
+  for(let i=0;i<=COLS;i++){const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',i*GS);l.setAttribute('y1',0);l.setAttribute('x2',i*GS);l.setAttribute('y2',ROWS*GS);l.setAttribute('stroke','#ffffff09');l.setAttribute('stroke-width','1');svg.appendChild(l);}
+  for(let i=0;i<=ROWS;i++){const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',0);l.setAttribute('y1',i*GS);l.setAttribute('x2',COLS*GS);l.setAttribute('y2',i*GS);l.setAttribute('stroke','#ffffff09');l.setAttribute('stroke-width','1');svg.appendChild(l);}
+  grid.appendChild(svg);
+
+  const floor=editorDesign.floors[currentEditorFloor];
+
+  // Render rooms
+  (floor.rooms||[]).forEach(r=>{
+    const div=document.createElement('div');
+    div.style.cssText=`position:absolute;left:${r.pos.x*GS}px;top:${r.pos.y*GS}px;width:${r.w*GS}px;height:${r.h*GS}px;background:rgba(99,102,241,.12);border:1.5px solid rgba(99,102,241,.5);border-radius:2px;overflow:hidden;`;
+    div.innerHTML=`<span style="font-size:8px;color:#818cf8;padding:2px">${r.name}</span>`;
+    grid.appendChild(div);
+  });
+
+  // Render furniture
+  const FE={desk:'🖥',whiteboard:'📋',meeting_room:'🎙',tv_screen:'📺',reception_desk:'🛎'};
+  (floor.furniture||[]).forEach(f=>{
+    const div=document.createElement('div');
+    div.style.cssText=`position:absolute;left:${f.pos.x*GS}px;top:${f.pos.y*GS}px;width:${GS*2}px;height:${GS*2}px;display:flex;align-items:center;justify-content:center;font-size:${GS}px;`;
+    div.textContent=FE[f.type]||'📦';
+    grid.appendChild(div);
+  });
+
+  // Render portals
+  (floor.portals||[]).forEach(p=>{
+    const div=document.createElement('div');
+    div.style.cssText=`position:absolute;left:${p.pos.x*GS}px;top:${p.pos.y*GS}px;width:${GS*2}px;height:${GS*2}px;display:flex;align-items:center;justify-content:center;font-size:${GS}px;`;
+    div.textContent='🌀';
+    grid.appendChild(div);
+  });
+
+  // Click handler
+  grid.onclick=(e)=>{
+    const rect=grid.getBoundingClientRect();
+    const gx=Math.floor((e.clientX-rect.left)/GS);
+    const gy=Math.floor((e.clientY-rect.top)/GS);
+    const floor=editorDesign.floors[currentEditorFloor];
+    if(editorTool==='room'){
+      const name=document.getElementById('room-name-input')?.value||'Room';
+      const w=+(document.getElementById('room-w')?.value||15);
+      const h=+(document.getElementById('room-h')?.value||10);
+      floor.rooms.push({id:'r'+Date.now(),name,pos:{x:gx,y:gy},w,h});
+    } else if(editorTool==='furniture'){
+      floor.furniture.push({id:'f'+Date.now(),type:selectedFurnitureType,pos:{x:gx,y:gy}});
+    } else if(editorTool==='portal'){
+      floor.portals.push({id:'p'+Date.now(),pos:{x:gx,y:gy},dest:currentEditorFloor+1<5?currentEditorFloor+2:1});
+    }
+    renderEditorGrid();
+  };
+}
+
+function saveEditor(){
+  const btn=document.querySelector('#editor-page [onclick="saveEditor()"]');
+  const orig=btn.textContent; btn.textContent='✓ Saved!'; btn.style.background='#16a34a';
+  setTimeout(()=>{btn.textContent=orig;btn.style.background='';},2000);
+}
+
+// ============================================================
+// 2D GAME (Canvas)
+// ============================================================
+const CHAT_MSGS = [
+  {user:'🤖 Bot',msg:'Welcome to the world!'},
+  {user:'Alex',msg:'Hey, try pressing E near the desk 👋'},
+  {user:'Sam',msg:'The meeting room voice chat is open'},
+];
+
+let gameKeys={};
+let playerPos={x:200,y:200};
+let gameAnimId=null;
+let otherPlayers=[
+  {x:350,y:180,name:'Alex',color:'#22c55e'},
+  {x:420,y:300,name:'Sam',color:'#f59e0b'},
+  {x:150,y:350,name:'Maya',color:'#ec4899'},
+];
+
+const ROOMS_DATA=[
+  {x:80,y:80,w:160,h:120,name:'Reception',color:'rgba(99,102,241,.25)',border:'#6366f1'},
+  {x:320,y:80,w:200,h:140,name:'Meeting Room',color:'rgba(34,197,94,.15)',border:'#22c55e'},
+  {x:80,y:280,w:140,h:120,name:'Lounge',color:'rgba(245,158,11,.12)',border:'#f59e0b'},
+  {x:320,y:300,w:160,h:100,name:'Dev Cave',color:'rgba(168,85,247,.15)',border:'#a855f7'},
+];
+const FURN_DATA=[
+  {x:120,y:120,type:'desk',emoji:'🖥'},
+  {x:160,y:120,type:'desk',emoji:'🖥'},
+  {x:350,y:110,type:'meeting_room',emoji:'🎙'},
+  {x:100,y:320,type:'whiteboard',emoji:'📋'},
+  {x:360,y:340,type:'tv_screen',emoji:'📺'},
+  {x:95,y:90,type:'reception_desk',emoji:'🛎'},
+  {x:500,y:200,type:'portal',emoji:'🌀'},
+];
+
+function initGame(){
+  const canvas=document.getElementById('game-canvas');
+  const wrap=document.getElementById('phaser-wrap');
+  canvas.width=wrap.clientWidth-260;
+  canvas.height=wrap.clientHeight;
+
+  // Reset
+  playerPos={x:200,y:200};
+  if(gameAnimId) cancelAnimationFrame(gameAnimId);
+
+  // Render chat
+  const msgs=document.getElementById('chat-messages');
+  msgs.innerHTML='';
+  CHAT_MSGS.forEach(m=>{
+    msgs.innerHTML+=`<div class="chat-msg"><span class="username">${m.user}:</span> ${m.msg}</div>`;
+  });
+  msgs.scrollTop=msgs.scrollHeight;
+
+  window.addEventListener('keydown',onKeyDown);
+  window.addEventListener('keyup',onKeyUp);
+  gameLoop(canvas);
+}
+
+function onKeyDown(e){gameKeys[e.key]=true;}
+function onKeyUp(e){gameKeys[e.key]=false;}
+
+function gameLoop(canvas){
+  const ctx=canvas.getContext('2d');
+  const SPEED=2.5;
+
+  const tick=()=>{
+    if(gameKeys['ArrowLeft']||gameKeys['a']||gameKeys['A']) playerPos.x-=SPEED;
+    if(gameKeys['ArrowRight']||gameKeys['d']||gameKeys['D']) playerPos.x+=SPEED;
+    if(gameKeys['ArrowUp']||gameKeys['w']||gameKeys['W']) playerPos.y-=SPEED;
+    if(gameKeys['ArrowDown']||gameKeys['s']||gameKeys['S']) playerPos.y+=SPEED;
+    playerPos.x=Math.max(16,Math.min(canvas.width-16,playerPos.x));
+    playerPos.y=Math.max(16,Math.min(canvas.height-16,playerPos.y));
+
+    // Check room
+    let inRoom=null;
+    ROOMS_DATA.forEach(r=>{if(playerPos.x>r.x&&playerPos.x<r.x+r.w&&playerPos.y>r.y&&playerPos.y<r.y+r.h)inRoom=r;});
+    const badge=document.getElementById('room-badge');
+    if(inRoom){badge.style.display='block';badge.textContent='📍 '+inRoom.name;}
+    else{badge.style.display='none';}
+
+    // Check nearby furniture
+    let nearFurn=null;
+    FURN_DATA.forEach(f=>{const dist=Math.hypot(playerPos.x-f.x-16,playerPos.y-f.y-16);if(dist<40)nearFurn=f;});
+    document.getElementById('interact-hint').style.display=nearFurn?'block':'none';
+
+    // Draw
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Background tile grid
+    ctx.fillStyle='#111118';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=1;
+    for(let x=0;x<canvas.width;x+=32){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+    for(let y=0;y<canvas.height;y+=32){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+
+    // Rooms
+    ROOMS_DATA.forEach(r=>{
+      ctx.fillStyle=r.color; ctx.fillRect(r.x,r.y,r.w,r.h);
+      ctx.strokeStyle=r.border; ctx.lineWidth=1.5; ctx.strokeRect(r.x,r.y,r.w,r.h);
+      ctx.fillStyle=r.border; ctx.font='9px system-ui'; ctx.fillText(r.name,r.x+5,r.y+13);
+    });
+
+    // Furniture
+    FURN_DATA.forEach(f=>{
+      ctx.font='20px serif'; ctx.fillText(f.emoji,f.x,f.y+20);
+    });
+
+    // Other players
+    otherPlayers.forEach(p=>{
+      ctx.fillStyle=p.color+'44'; ctx.beginPath(); ctx.arc(p.x,p.y,14,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,10,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.font='8px system-ui'; ctx.textAlign='center'; ctx.fillText(p.name,p.x,p.y-18); ctx.textAlign='left';
+    });
+
+    // Player
+    const av=savedAvatars[0];
+    if(av){
+      // draw tiny avatar
+      const tc=document.createElement('canvas'); tc.width=32;tc.height=32;
+      drawAvatarToCanvas(tc,av);
+      ctx.drawImage(tc,playerPos.x-16,playerPos.y-16,32,32);
+    } else {
+      ctx.fillStyle='#6366f1'; ctx.beginPath(); ctx.arc(playerPos.x,playerPos.y,14,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#a5b4fc'; ctx.beginPath(); ctx.arc(playerPos.x,playerPos.y,10,0,Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle='#fff'; ctx.font='9px system-ui'; ctx.textAlign='center'; ctx.fillText('You',playerPos.x,playerPos.y-20); ctx.textAlign='left';
+
+    gameAnimId=requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+// E-key interaction in game
+window.addEventListener('keydown',(e)=>{
+  if(e.key==='e'||e.key==='E'){
+    FURN_DATA.forEach(f=>{
+      const dist=Math.hypot(playerPos.x-f.x-16,playerPos.y-f.y-16);
+      if(dist<40){
+        const msgs=document.getElementById('chat-messages');
+        msgs.innerHTML+=`<div class="chat-msg"><span class="username">🔔 System:</span> Interacted with ${f.type.replace(/_/g,' ')}</div>`;
+        msgs.scrollTop=msgs.scrollHeight;
+      }
+    });
+  }
+});
+
+function sendChat(e){
+  e.preventDefault();
+  const inp=document.getElementById('chat-input');
+  const msg=inp.value.trim(); if(!msg) return;
+  const msgs=document.getElementById('chat-messages');
+  msgs.innerHTML+=`<div class="chat-msg"><span class="username" style="color:#a5b4fc">You:</span> ${msg}</div>`;
+  msgs.scrollTop=msgs.scrollHeight;
+  inp.value='';
+}
+</script>
+</body>
+</html>
